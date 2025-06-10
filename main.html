@@ -159,7 +159,19 @@
             <h1>HEXRPG Raffle Ticket Tracker</h1>
             <p>Generate ticket lists just by pasting store history!</p>
         </header>
-        
+<div class="panel" style="margin-bottom: 1.5rem; background-color: #252525;">
+    <p style="margin: 0;">Your data can be in either format:</p>
+    <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+        <div style="flex: 1; background: #1E1E1E; padding: 0.5rem; border-radius: 4px;">
+            <code style="color: var(--text-gold);">1   Item   User   Amount   Date</code>
+            <p style="margin: 0.5rem 0 0 0; color: var(--neutral-beige); font-size: 0.9em;">Numbered format</p>
+        </div>
+        <div style="flex: 1; background: #1E1E1E; padding: 0.5rem; border-radius: 4px;">
+            <code style="color: var(--text-gold);">Item   User   Amount   Date</code>
+            <p style="margin: 0.5rem 0 0 0; color: var(--neutral-beige); font-size: 0.9em;">Unnumbered format</p>
+        </div>
+    </div>
+</div>  
         <div class="panel">
             <div class="input-group">
                 <label for="purchaseData">Paste Raffle Purchase History:</label>
@@ -198,72 +210,77 @@
 
     <script>
         document.getElementById('generateBtn').addEventListener('click', function() {
-            const purchaseData = document.getElementById('purchaseData').value;
-            const ticketPrice = parseInt(document.getElementById('ticketPrice').value.replace(/,/g, ''));
+    const purchaseData = document.getElementById('purchaseData').value;
+    const ticketPrice = parseInt(document.getElementById('ticketPrice').value.replace(/,/g, ''));
+    
+    if (!purchaseData || isNaN(ticketPrice) || ticketPrice <= 0) {
+        alert('Please enter valid purchase data and ticket price');
+        return;
+    }
+    
+    const lines = purchaseData.split('\n').filter(line => line.trim());
+    const participants = {};
+    let currentTicket = 1;
+    
+    lines.forEach(line => {
+        const parts = line.split('\t').filter(part => part.trim());
+        if (parts.length >= 3) {
+            // Check if first column is a number (old format) or not (new format)
+            const isNumbered = !isNaN(parseInt(parts[0]));
+            const username = isNumbered ? (parts.length >= 4 ? parts[2] : '') : parts[1];
+            const amountStr = isNumbered ? (parts.length >= 4 ? parts[3] : '') : parts[2];
             
-            if (!purchaseData || isNaN(ticketPrice) || ticketPrice <= 0) {
-                alert('Please enter valid purchase data and ticket price');
-                return;
-            }
-            
-            const lines = purchaseData.split('\n').filter(line => line.trim());
-            const participants = {};
-            let currentTicket = 1;
-            
-            lines.forEach(line => {
-                const parts = line.split('\t');
-                if (parts.length >= 4) {
-                    const username = parts[2].trim();
-                    const amountStr = parts[3].split(' ')[0].replace(/,/g, '');
-                    const amount = parseInt(amountStr);
+            if (username && amountStr) {
+                const amount = parseInt(amountStr.replace(/,/g, '').split(' ')[0]);
+                
+                if (!isNaN(amount) && amount >= ticketPrice) {
+                    const ticketsBought = Math.floor(amount / ticketPrice);
                     
-                    if (!isNaN(amount) && amount >= ticketPrice) {
-                        const ticketsBought = Math.floor(amount / ticketPrice);
-                        
-                        if (!participants[username]) {
-                            participants[username] = [];
-                        }
-                        
-                        const start = currentTicket;
-                        const end = currentTicket + ticketsBought - 1;
-                        participants[username].push({ start, end });
-                        currentTicket = end + 1;
+                    if (!participants[username]) {
+                        participants[username] = [];
                     }
+                    
+                    const start = currentTicket;
+                    const end = currentTicket + ticketsBought - 1;
+                    participants[username].push({ start, end });
+                    currentTicket = end + 1;
                 }
-            });
-            
-            // Display results
-            document.getElementById('totalTickets').textContent = currentTicket - 1;
-            document.getElementById('totalParticipants').textContent = Object.keys(participants).length;
-            
-            const participantList = document.getElementById('participantList');
-            participantList.innerHTML = '';
-            
-            Object.entries(participants).sort().forEach(([username, ranges]) => {
-                const participantDiv = document.createElement('div');
-                participantDiv.className = 'participant';
-                
-                const nameSpan = document.createElement('span');
-                nameSpan.textContent = username;
-                
-                const rangesSpan = document.createElement('span');
-                rangesSpan.className = 'ticket-range';
-                
-                const rangeStrings = ranges.map(range => {
-                    return range.start === range.end 
-                        ? range.start 
-                        : `${range.start}-${range.end}`;
-                });
-                
-                rangesSpan.textContent = rangeStrings.join(', ');
-                
-                participantDiv.appendChild(nameSpan);
-                participantDiv.appendChild(rangesSpan);
-                participantList.appendChild(participantDiv);
-            });
-            
-            document.getElementById('results').style.display = 'block';
+            }
+        }
+    });
+    
+    // Display results
+    document.getElementById('totalTickets').textContent = currentTicket - 1;
+    document.getElementById('totalParticipants').textContent = Object.keys(participants).length;
+    
+    const participantList = document.getElementById('participantList');
+    participantList.innerHTML = '';
+    
+    Object.entries(participants).sort().forEach(([username, ranges]) => {
+        const participantDiv = document.createElement('div');
+        participantDiv.className = 'participant';
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = username;
+        
+        const rangesSpan = document.createElement('span');
+        rangesSpan.className = 'ticket-range';
+        
+        const rangeStrings = ranges.map(range => {
+            return range.start === range.end 
+                ? range.start 
+                : `${range.start}-${range.end}`;
         });
-    </script>
+        
+        rangesSpan.textContent = rangeStrings.join(', ');
+        
+        participantDiv.appendChild(nameSpan);
+        participantDiv.appendChild(rangesSpan);
+        participantList.appendChild(participantDiv);
+    });
+    
+    document.getElementById('results').style.display = 'block';
+}); 
+</script>
 </body>
 </html>
