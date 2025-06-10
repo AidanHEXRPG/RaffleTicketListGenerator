@@ -223,12 +223,26 @@
     let currentTicket = 1;
     
     lines.forEach(line => {
-        const parts = line.split('\t').filter(part => part.trim());
+        // Split on tabs / preserve empty fields
+        const parts = line.split('\t');
+        
+        // For unnumbered format
         if (parts.length >= 3) {
-            // Check if first column is a number (old format) or not (new format)
+            // Check if first part is number or not 
             const isNumbered = !isNaN(parseInt(parts[0]));
-            const username = isNumbered ? (parts.length >= 4 ? parts[2] : '') : parts[1];
-            const amountStr = isNumbered ? (parts.length >= 4 ? parts[3] : '') : parts[2];
+            
+            let username, amountStr;
+            if (isNumbered) {
+                // Numbered format
+                if (parts.length >= 4) {
+                    username = parts[2].trim();
+                    amountStr = parts[3].trim();
+                }
+            } else {
+                // Unnumbered vers
+                username = parts[1].trim();
+                amountStr = parts[2].trim();
+            }
             
             if (username && amountStr) {
                 const amount = parseInt(amountStr.replace(/,/g, '').split(' ')[0]);
@@ -247,8 +261,7 @@
                 }
             }
         }
-    });
-    
+    });    
     // Display results
     document.getElementById('totalTickets').textContent = currentTicket - 1;
     document.getElementById('totalParticipants').textContent = Object.keys(participants).length;
