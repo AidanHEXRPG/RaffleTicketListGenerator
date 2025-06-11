@@ -269,7 +269,7 @@
     const participantList = document.getElementById('participantList');
     participantList.innerHTML = '';
     
-    Object.entries(participants).sort().forEach(([username, ranges]) => {
+    Object.entries(participants).sort().reverse().forEach(([username, ranges]) => {
         const participantDiv = document.createElement('div');
         participantDiv.className = 'participant';
         
