@@ -172,6 +172,7 @@
         </div>
     </div>
 </div>  
+
         <div class="panel">
             <div class="input-group">
                 <label for="purchaseData">Paste Raffle Purchase History:</label>
@@ -180,12 +181,65 @@
 2	The Savior	Aidan	500,000 0 0	May 17, 1:01 am
 3	Bloodpop	Aidan	2,500,000 0 0	Apr 22, 10:55 pm"></textarea>
             </div>
+
             
             <div class="input-group">
                 <label for="ticketPrice">Ticket Price (Galleons):</label>
                 <input type="text" id="ticketPrice" value="10000">
             </div>
-            
+<div class="panel" style="margin-bottom: 2rem;">
+    <div class="panel" style="margin-bottom: 2rem;">
+    <h2>Bonus Ticket Tiers</h2>
+    <div id="bonusTiersContainer">
+        <div class="input-group" style="display: flex; gap: 1rem; margin-bottom: 0.5rem; align-items: center;">
+            <input type="text" class="tier-threshold" placeholder="Amount (Galleons)" value="1,000,000" style="flex: 2;">
+            <span>→</span>
+            <input type="number" class="tier-bonus" placeholder="Bonus tickets" value="50" style="flex: 1;">
+            <button class="remove-tier" style="background: #ff4444; padding: 0.5rem;">×</button>
+        </div>
+    </div>
+    <button id="addTierBtn" style="margin-top: 1rem;">+ Add Another Tier</button>
+</div>
+
+<script>
+// Bonus tier management
+document.addEventListener('DOMContentLoaded', function() {
+    const bonusTiersContainer = document.getElementById('bonusTiersContainer');
+    const addTierBtn = document.getElementById('addTierBtn');
+
+        function addTierRow(threshold = '', bonus = '') {
+        const tierDiv = document.createElement('div');
+        tierDiv.className = 'input-group';
+        tierDiv.style.display = 'flex';
+        tierDiv.style.gap = '1rem';
+        tierDiv.style.marginBottom = '0.5rem';
+        tierDiv.style.alignItems = 'center';
+        
+        tierDiv.innerHTML = `
+            <input type="text" class="tier-threshold" placeholder="Amount (Galleons)" 
+                   value="${threshold}" style="flex: 2;">
+            <span>→</span>
+            <input type="number" class="tier-bonus" placeholder="Bonus tickets" 
+                   value="${bonus}" style="flex: 1;">
+            <button class="remove-tier" style="background: #ff4444; padding: 0.5rem;">×</button>
+        `;
+        
+        bonusTiersContainer.appendChild(tierDiv);
+    }
+
+    // Add tier button
+    addTierBtn.addEventListener('click', function() {
+        addTierRow();
+    });
+
+    // Remove tier button 
+    bonusTiersContainer.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-tier')) {
+            e.target.parentElement.remove();
+        }
+    });
+});
+</script>            
             <button id="generateBtn">Generate Ticket Allocations</button>
         </div>
         
@@ -209,83 +263,101 @@
     </div>
 
     <script>
-        document.getElementById('generateBtn').addEventListener('click', function() {
-    const purchaseData = document.getElementById('purchaseData').value;
-    const ticketPrice = parseInt(document.getElementById('ticketPrice').value.replace(/,/g, ''));
+
+document.getElementById('generateBtn').addEventListener('click', function() {
+    // Get all bonus tiers from UI
+    const tierRows = bonusTiersContainer.querySelectorAll('.input-group');
+    const BONUS_TIERS = [];
     
-    if (!purchaseData || isNaN(ticketPrice) || ticketPrice <= 0) {
+    tierRows.forEach(row => {
+        const threshold = parseInt(row.querySelector('.tier-threshold').value.replace(/,/g, ''));
+        const bonus = parseInt(row.querySelector('.tier-bonus').value);
+        
+        if (!isNaN(threshold) && !isNaN(bonus)) {
+            BONUS_TIERS.push({ threshold, bonus });
+        }
+    });
+    
+    const purchaseData = document.getElementById('purchaseData').value;
+    const baseTicketPrice = parseInt(document.getElementById('ticketPrice').value.replace(/,/g, '')) || 10000;
+    
+    if (!purchaseData || isNaN(baseTicketPrice) || baseTicketPrice <= 0) {
         alert('Please enter valid purchase data and ticket price');
         return;
     }
     
     const lines = purchaseData.split('\n').filter(line => line.trim());
-    const participants = {};
+    const participants = [];
     let currentTicket = 1;
     
+    // calc all tickets
     lines.forEach(line => {
-        // Split on tabs / preserve empty fields
-        const parts = line.split('\t');
-        
-        // For unnumbered format
+        const parts = line.split('\t').filter(part => part.trim());
         if (parts.length >= 3) {
-            // Check if first part is number or not 
             const isNumbered = !isNaN(parseInt(parts[0]));
+            const username = isNumbered ? parts[2] : parts[1];
+            const amountStr = isNumbered ? parts[3] : parts[2];
+            const cleanAmount = parseInt(amountStr.replace(/,/g, '').split(' ')[0]);
             
-            let username, amountStr;
-            if (isNumbered) {
-                // Numbered format
-                if (parts.length >= 4) {
-                    username = parts[2].trim();
-                    amountStr = parts[3].trim();
-                }
-            } else {
-                // Unnumbered vers
-                username = parts[1].trim();
-                amountStr = parts[2].trim();
-            }
-            
-            if (username && amountStr) {
-                const amount = parseInt(amountStr.replace(/,/g, '').split(' ')[0]);
+            if (!isNaN(cleanAmount)) {
+                let ticketsBought = Math.floor(cleanAmount / baseTicketPrice);
+                let bonusTickets = 0;
                 
-                if (!isNaN(amount) && amount >= ticketPrice) {
-                    const ticketsBought = Math.floor(amount / ticketPrice);
-                    
-                    if (!participants[username]) {
-                        participants[username] = [];
-                    }
-                    
-                    const start = currentTicket;
-                    const end = currentTicket + ticketsBought - 1;
-                    participants[username].push({ start, end });
-                    currentTicket = end + 1;
+                // Only apply bonus if amount exactly matches a tier
+                const matchingTier = BONUS_TIERS.find(tier => cleanAmount === tier.threshold);
+                if (matchingTier) {
+                    bonusTickets = matchingTier.bonus;
+                }
+                
+                const totalTickets = ticketsBought + bonusTickets;
+                
+                if (totalTickets > 0) {
+                    participants.push({
+                        username,
+                        amount: cleanAmount,
+                        tickets: totalTickets,
+                        timestamp: isNumbered && parts.length >= 5 ? parts[4] : parts[3]
+                    });
                 }
             }
         }
-    });    
+    });
+    
+    // Sort oldest first)
+    participants.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    // ssign tickt numbers
+    const ticketAssignments = [];
+    participants.forEach(participant => {
+        const start = currentTicket;
+        const end = currentTicket + participant.tickets - 1;
+        ticketAssignments.push({
+            username: participant.username,
+            start,
+            end
+        });
+        currentTicket = end + 1;
+    });
+    
     // Display results
     document.getElementById('totalTickets').textContent = currentTicket - 1;
-    document.getElementById('totalParticipants').textContent = Object.keys(participants).length;
+    document.getElementById('totalParticipants').textContent = participants.length;
     
     const participantList = document.getElementById('participantList');
     participantList.innerHTML = '';
     
-    Object.entries(participants).sort().reverse().forEach(([username, ranges]) => {
+    ticketAssignments.forEach(assignment => {
         const participantDiv = document.createElement('div');
         participantDiv.className = 'participant';
         
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = username;
+        nameSpan.textContent = assignment.username;
         
         const rangesSpan = document.createElement('span');
         rangesSpan.className = 'ticket-range';
-        
-        const rangeStrings = ranges.map(range => {
-            return range.start === range.end 
-                ? range.start 
-                : `${range.start}-${range.end}`;
-        });
-        
-        rangesSpan.textContent = rangeStrings.join(', ');
+        rangesSpan.textContent = assignment.start === assignment.end 
+            ? assignment.start 
+            : `${assignment.start}-${assignment.end}`;
         
         participantDiv.appendChild(nameSpan);
         participantDiv.appendChild(rangesSpan);
@@ -293,7 +365,6 @@
     });
     
     document.getElementById('results').style.display = 'block';
-}); 
-</script>
+});        </script>
 </body>
 </html>
